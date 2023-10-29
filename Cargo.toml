@@ -1,5 +1,5 @@
 [package]
-name = "rain"
+name = "rrain"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 termion = "2.0.1"
 rand = "0.8.5"
-libc = "0.2"
+libc = "0.2.149"
 signal-hook = "0.3.10"
