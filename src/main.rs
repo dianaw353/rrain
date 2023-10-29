@@ -1,15 +1,9 @@
-use std::io::{stdout, Write};
+use std::io::{stdin, stdout, Write};
 use std::thread;
 use std::time::Duration;
-use termion::color;
-use termion::cursor;
-use termion::raw::IntoRawMode;
-use termion::event::Key;
-use termion::input::TermRead;
+use termion::{color, cursor, event::Key, raw::IntoRawMode, input::TermRead};
 use termion::terminal_size;
-use std::io::stdin;
 use rand::prelude::*;
-use rand::Rng;
 use std::sync::{Arc, Mutex};
 use signal_hook::{iterator::Signals};
 use libc::SIGWINCH;
@@ -41,11 +35,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stdin = stdin();
 
     let rains = vec!["|", "│", "┃", "┆", "┇", "┊", "┋", "╽", "╿"];
-    let colors = vec![
-        color::White,
-        color::White,
-        // More from 256 color mode
-    ];
+    
+    // Create a single RNG at the start of your program
     let mut rng = rand::thread_rng();
 
     // Shared flag for threads
@@ -68,7 +59,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // Handle SIGWINCH
+    
+// Handle SIGWINCH
 let mut signals = Signals::new(&[SIGWINCH])?;
 let re = Arc::clone(&resized);
 thread::spawn(move || {
@@ -88,7 +80,8 @@ thread::spawn(move || {
      // Hide the cursor
      write!(stdout, "{}", termion::cursor::Hide)?;
 
-     while *running.lock().unwrap() {
+     let mut counter = 0;
+     while *running.lock().unwrap() || counter % 10 == 0 {
          // Check if window was resized
 if *resized.lock().unwrap() {
     let size = terminal_size()?;
@@ -96,27 +89,28 @@ if *resized.lock().unwrap() {
     height = size.1;
     *resized.lock().unwrap() = false;
 
-    // Clear the screen
-    write!(stdout, "{}", termion::clear::All)?;
-
-    // Clear existing raindrops and create new ones
-    raindrops.clear();
-    raindrops = (0..width).map(|x| Raindrop::new(x, rng.gen_range(1..=height), rains.choose(&mut rng).unwrap().to_string())).collect();
+     // Update existing raindrops
+     for drop in &mut raindrops {
+         drop.x = rng.gen_range(1..=width);
+         drop.y = rng.gen_range(1..=height);
+         drop.style = rains.choose(&mut rng).unwrap().to_string();
+     }
 }
 
+         // Create a buffer string
+         let mut buffer_string = String::new();
 
          for drop in &mut raindrops {
              drop.fall(height);
-             let color = colors.choose(&mut rng).unwrap();
-             write!(
-                 stdout,
+             buffer_string.push_str(&format!(
                  "{}{}{}",
                  cursor::Goto(drop.x, drop.y),
-                 color.fg_str(),
+                 color::White.fg_str(),
                  drop.style
-             )?;
+             ));
          }
 
+         write!(stdout, "{}", buffer_string)?;
          stdout.flush()?;
 
          thread::sleep(Duration::from_millis(SLEEP_DURATION));
@@ -124,6 +118,8 @@ if *resized.lock().unwrap() {
          // Clear the screen
          write!(stdout, "{}", termion::clear::All)?;
          stdout.flush()?;
+         
+         counter += 1;
      }
 
      // Show the cursor again before exiting
